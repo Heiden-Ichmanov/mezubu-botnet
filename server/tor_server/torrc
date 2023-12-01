@@ -1,0 +1,4 @@
+SocksPort 9150
+DataDirectory ./tor_server/tor
+ControlPort 9151
+HashedControlPassword ADDHASHEDPASSWORDHERE
