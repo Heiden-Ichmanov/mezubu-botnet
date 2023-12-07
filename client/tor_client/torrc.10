@@ -1,3 +1,2 @@
 SocksPort 9170
-DataDirectory ./tor_client/tor10
-ControlPort 9171
+DataDirectory tor_client/tor10

