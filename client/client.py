@@ -29,7 +29,7 @@ class Client:
 			sleep(10)
 			self.start()
 
-	def handler(self, client_socket):
+	def handler(self, client_socket: socks.socksocket):
 		self.quit_boolean = False
 		client_socket.settimeout(120)
 		while not self.quit_boolean:
@@ -46,7 +46,7 @@ class Client:
 				print("Exception:", e)
 		self.start()
 
-	def handle_package(self, package):
+	def handle_package(self, package: bytes):
 		try:
 			if package.decode().find("|PASS|") > -1:
 				password = package.decode().split("|PASS|")[1]
@@ -56,7 +56,7 @@ class Client:
 		except Exception as e:
 			print("Exception:", e)
 
-	def process_package(self, package):
+	def process_package(self, package: str):
 		try:
 			if len(package.split("|")) > 1:
 				package = package.split("|")
@@ -77,7 +77,7 @@ class Client:
 		for torrc_number in range(1, tor_relay_count + 1):
 			subprocess.Popen(f"pkill -f './tor -f tor_client/torrc.{torrc_number}'", shell=True).wait()
 
-	def stop_tor_relay(self, torrc_number):
+	def stop_tor_relay(self, torrc_number: int):
 		subprocess.Popen(f"pkill -f './tor -f tor_client/torrc.{torrc_number}'", shell=True).wait()
 
 	def verify_local_ports(self):
@@ -100,7 +100,7 @@ class Client:
 			else:
 				self.stop_tor_relay(counter)
 
-	def start_tor_relay(self, torrc_number):
+	def start_tor_relay(self, torrc_number: int) -> bool:
 		try:
 			print(f"\n\n{torrc_number}º TOR RELAY\n\n")
 			proc = subprocess.Popen(["./tor", "-f", f"tor_client/torrc.{torrc_number}"], stdout=subprocess.PIPE)
